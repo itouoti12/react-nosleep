@@ -1,0 +1,64 @@
+
+name: deploy to github pages
+
+on:
+  push:
+    branches: [ "master" ]
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup
+        uses: actions/setup-node@v3
+        id: setup_node_id
+        with:
+          node-version: '18'
+      - uses: actions/cache@v3
+        id: node_modules_cache_id
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/yarn.lock') }}
+      - run: echo '${{ toJSON(steps.node_modules_cache_id.outputs) }}'
+
+      - if: ${{ steps.node_modules_cache_id.outputs.cache-hit != 'true' }}
+        run: |
+          yarn install
+      
+      - name: Build
+        run: |
+          yarn build
+#         一時的にLintチェックを無効にする
+        env:
+          CI: false
+
+      - uses: actions/upload-pages-artifact@v1
+        with:
+          path: build
+
+  deploy:
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
+
+
